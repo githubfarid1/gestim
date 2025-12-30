@@ -78,7 +78,11 @@ def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, p
     PCNAME=os.environ.get("PCNAME")
     clickme = datetime(int(clickdate.split("-")[0]), int(clickdate.split("-")[1]), int(clickdate.split("-")[2]), int(clicktime.split(":")[0]), int(clicktime.split(":")[1]), int(clicktime.split(":")[2].split(".")[0]), int(clicktime.split(":")[2].split(".")[1]), tzinfo = tz.gettz(selected_timezone))
     starttocount = clickme - timedelta(seconds=UNTILSECOND)
-    browser = playwright.chromium.launch(headless=True, slow_mo=1000)
+    if os.environ.get("HEADLESS") == "yes":
+        HEADLESS=True
+    else:
+        HEADLESS=False
+    browser = playwright.chromium.launch(headless=HEADLESS, slow_mo=1000)
     context = browser.new_context()
     page = context.new_page()
     page.goto("https://gestim.mines.gouv.qc.ca/MRN_GestimP_Presentation/ODM02101_login.aspx")
