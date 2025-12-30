@@ -21,8 +21,10 @@ import gspread
 from google.oauth2.service_account import Credentials
 from gspread import Worksheet
 from time import sleep as timesleep
-
-pytesseract.pytesseract.tesseract_cmd = r'Tesseract-OCR\tesseract.exe'
+from sys import platform
+if platform == "win32":
+    pytesseract.pytesseract.tesseract_cmd = r'Tesseract-OCR\tesseract.exe'
+    
 est = timezone("US/Eastern")
 logger = setup_logger(__name__)
 __version__ = '1.0'
