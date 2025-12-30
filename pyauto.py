@@ -1,0 +1,16 @@
+from pyautogui import click, displayMousePosition, typewrite, hotkey
+import time
+time.sleep(2)
+click(484, 1047)
+time.sleep(7)
+click(1103, 268)
+time.sleep(5)
+hotkey("ctrl", "l")
+time.sleep(2)
+typewrite("google.com")
+time.sleep(1)
+hotkey("enter")
+time.sleep(2)
+typewrite("python pyautogui")
+time.sleep(1)
+hotkey("enter")

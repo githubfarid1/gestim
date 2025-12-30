@@ -1,0 +1,8 @@
+venv
+ms-playwright
+Tesseract-OCR
+dist
+build
+.env
+*.spec
+credentials.json
