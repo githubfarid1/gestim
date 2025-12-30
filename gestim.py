@@ -24,7 +24,7 @@ from time import sleep as timesleep
 from sys import platform
 if platform == "win32":
     pytesseract.pytesseract.tesseract_cmd = r'Tesseract-OCR\tesseract.exe'
-    
+
 est = timezone("US/Eastern")
 logger = setup_logger(__name__)
 __version__ = '1.0'
@@ -78,7 +78,7 @@ def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, p
     PCNAME=os.environ.get("PCNAME")
     clickme = datetime(int(clickdate.split("-")[0]), int(clickdate.split("-")[1]), int(clickdate.split("-")[2]), int(clicktime.split(":")[0]), int(clicktime.split(":")[1]), int(clicktime.split(":")[2].split(".")[0]), int(clicktime.split(":")[2].split(".")[1]), tzinfo = tz.gettz(selected_timezone))
     starttocount = clickme - timedelta(seconds=UNTILSECOND)
-    browser = playwright.chromium.launch(headless=False, slow_mo=1000)
+    browser = playwright.chromium.launch(headless=True, slow_mo=1000)
     context = browser.new_context()
     page = context.new_page()
     page.goto("https://gestim.mines.gouv.qc.ca/MRN_GestimP_Presentation/ODM02101_login.aspx")
