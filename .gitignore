@@ -6,3 +6,4 @@ build
 .env
 *.spec
 credentials.json
+logs
