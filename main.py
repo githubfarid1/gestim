@@ -144,10 +144,12 @@ class MainFrame(ttk.Frame):
 		
 		titleLabel = TitleLabel(self, 'Main Menu')
 		gestim1Button = FrameButton(self, window, text="Gestim Mines Submit", class_frame=Gestim1Frame)
+		gestim2Button = FrameButton(self, window, text="Gestim Mines Submit (Remote)", class_frame=Gestim2Frame)
 
 		# layout
 		titleLabel.grid(column = 0, row = 0, sticky=(W, E, N, S), padx=15, pady=5, columnspan=4)
 		gestim1Button.grid(column = 0, row = 1, sticky=(W, E, N, S), padx=15, pady=5)
+		gestim2Button.grid(column = 0, row = 2, sticky=(W, E, N, S), padx=15, pady=5)
   
 class TitleLabel(ttk.Label):
 	def __init__(self, parent, text):
@@ -215,7 +217,7 @@ class Gestim1Frame(ttk.Frame):
 		runButton = ttk.Button(self, text='Run Process', command = lambda:self.run_process(appnumber=textappnumber, date=textdate, time=texttime, user=textuser, password=textpass, autocancel=combocancel))
 		titleLabel.grid(column = 0, row = 0, sticky = (W, E, N, S))
 		estButton = ttk.Button(self, text='Estimate', command = lambda:self.estimation(target_time=texttarget, estime=textestime, submit_time=texttime))
-		# resButton = ttk.Button(self, text='Reset', command = lambda:self.reset(time=texttime))
+		resButton = ttk.Button(self, text='Reset Gsheet', command = lambda:self.reset())
 		
 		labeluser.grid(column = 0, row = 1, sticky=(W))
 		textuser.grid(column=0, row=1)
@@ -236,7 +238,7 @@ class Gestim1Frame(ttk.Frame):
 		textappnumber.grid(column=0, row=6)
 		runButton.grid(column = 0, row = 5, sticky = (E))
 		estButton.grid(column = 0, row = 4, sticky = (E))
-		# resButton.grid(column = 0, row = 3, sticky = (E))
+		resButton.grid(column = 0, row = 3, sticky = (E))
 		closeButton.grid(column = 0, row = 11, sticky = (E))
 		labelcancel.grid(column = 0, row = 7, sticky=(W))
 		combocancel.grid(column = 0, row = 7)
@@ -261,10 +263,11 @@ class Gestim1Frame(ttk.Frame):
 		run_module(comlist=comlist)
 
 	def reset(self, **kwargs):
-		v1 = kwargs['time'].get()[0:6]
-		kwargs['time'].delete(0, 30)
-		kwargs['time'].insert(0, v1 + "00.000000")
-
+		data = sheet.findall(os.environ.get("PCNAME"))
+		for dt in data:
+			sheet.delete_rows(dt.row)
+		messagebox.showinfo(title='Info', message=f'Data with PCNAME {os.environ.get("PCNAME")} deleted')
+  
 	def estimation(self, **kwargs):
 		PCNAME = os.environ.get("PCNAME")
 		cell_list = sheet.findall(PCNAME)
@@ -304,6 +307,7 @@ class Gestim1Frame(ttk.Frame):
 			request_time_str = request_time.strftime("%H:%M:%S.%f")
 			# est1_time = request_time - timedelta(seconds=avoffset)
 			kwargs['estime'].insert("2.0", request_time_str + "\n" )
+			messagebox.showinfo(title='Info', message=f'Estimate process Finished..')
 			# kwargs['estime'].insert("3.0", est1_time.strftime("%H:%M:%S.%f") + "\n" )
 		else:
 			# target_time_str = kwargs['time'].get()
@@ -312,6 +316,163 @@ class Gestim1Frame(ttk.Frame):
 			kwargs['estime'].delete("1.0", END)
 			kwargs['estime'].insert("1.0", request_time.strftime("%H:%M:%S.%f") + "\n")
 
+class Gestim2Frame(ttk.Frame):
+   
+	def __init__(self, window) -> None:
+		target_timezone = timezone('America/New_York')
+		utc_now = datetime.now(utc)
+		target_time = utc_now.astimezone(target_timezone)
+		
+		super().__init__(window)
+		self.grid(column=0, row=0, sticky=(N, E, W, S), columnspan=4)
+		self.config(padding="20 20 20 20", borderwidth=1, relief='groove')
+		self.columnconfigure(0, weight=1)
+
+		self.rowconfigure(0, weight=1)
+		self.rowconfigure(1, weight=1)
+		self.rowconfigure(2, weight=1)
+		self.rowconfigure(3, weight=1)
+		self.rowconfigure(4, weight=1)
+		self.rowconfigure(5, weight=1)
+		self.rowconfigure(6, weight=1)
+		self.rowconfigure(7, weight=1)
+		self.rowconfigure(8, weight=1)
+		self.rowconfigure(9, weight=1)
+		self.rowconfigure(10, weight=1)
+
+
+		# populate
+		titleLabel = TitleLabel(self, text="Gestim Mines Submit (Remote)")
+		self.digital_timer = Label(self, font=('calibri', 16, 'bold'))
+		closeButton = CloseButton(self)
+		labelport = Label(self, text="Chrome Port:")
+		spinport = ttk.Spinbox(self, from_=9001, to=9010, wrap=True, textvariable=IntVar(self, 9001), width=78, state="readonly")
+		labeldate = Label(self, text="Date:")
+		textdate = DateEntry(self, width= 77, date_pattern='yyy-mm-dd')
+		labeltime = Label(self, text="Submit Time:")
+		texttime = Entry(self, width=80)
+		labelcancel = Label(self, text="Auto Cancel:")
+		options1 = ["Yes", "No"]
+		combocancel = ttk.Combobox(self, values=options1, state="readonly", width=78)
+		combocancel.set("Yes")
+		labelclose = Label(self, text="Auto Close:")
+		options2 = ["Yes", "No"]
+		comboclose = ttk.Combobox(self, values=options2, state="readonly", width=78)
+		comboclose.set("No")
+  
+		labeltarget = Label(self, text="Target Time:")
+		texttarget = TimeEntry(self)
+		labelestime = Label(self, text="Estimate Time:")
+		textestime = Text(self, width=60, height=4)
+		labeltab = Label(self, text="Chrome Port:")
+		spintab = ttk.Spinbox(self, from_=9001, to=9010, wrap=True, textvariable=IntVar(self, 9001), width=78, state="readonly")
+		runButton = ttk.Button(self, text='Run Process', command = lambda:self.run_process(date=textdate, time=texttime, autocancel=combocancel, tab=spintab, autoclose=comboclose))
+		titleLabel.grid(column = 0, row = 0, sticky = (W, E, N, S))
+		estButton = ttk.Button(self, text='Estimate', command = lambda:self.estimation(target_time=texttarget, estime=textestime, submit_time=texttime))
+		resButton = ttk.Button(self, text='Reset Gsheet', command = lambda:self.reset())
+		chromeButton = ttk.Button(self, text='Open Chrome', command = lambda:self.chrome(port=spinport))
+		separator = ttk.Separator(self, orient=HORIZONTAL)
+  
+		labelport.grid(column = 0, row = 1, sticky=(W))
+		spinport.grid(column = 0, row = 1)
+		separator.grid(column=0, row=2, columnspan=2, sticky=(E, W))
+		labeldate.grid(column = 0, row = 3, sticky=(W))
+		textdate.grid(column=0, row=3)
+		labeltime.grid(column = 0, row = 4, sticky=(W))
+		texttime.grid(column=0, row=4)
+		textdate.set_date(target_time.date())
+		
+		runButton.grid(column = 0, row = 7, sticky = (E))
+		estButton.grid(column = 0, row = 3, sticky = (E))
+		resButton.grid(column = 0, row = 5, sticky = (E))
+		chromeButton.grid(column = 0, row = 1, sticky = (E))
+		closeButton.grid(column = 0, row = 11, sticky = (E))
+
+		labelcancel.grid(column = 0, row = 8, sticky=(W))
+		combocancel.grid(column = 0, row = 8)
+		labelestime.grid(column = 0, row = 6, sticky=(W))
+		textestime.grid(column=0, row=6)
+		labeltarget.grid(column=0, row=5, sticky=(W))
+		texttarget.grid(column=0, row=5)
+		labelclose.grid(column = 0, row = 9, sticky=(W))
+		comboclose.grid(column = 0, row = 9)
+		labeltab.grid(column = 0, row = 7, sticky=(W))
+		spintab.grid(column = 0, row = 7)
+		
+	def run_process(self, **kwargs):
+		try:
+			date.fromisoformat(kwargs['date'].get())
+		except ValueError:
+			raise ValueError("Incorrect date format, should be YYYY-MM-DD")
+		try:
+			time.fromisoformat(kwargs['time'].get())
+		except ValueError:
+			raise ValueError("Incorrect time format, should be HH:MM:SS.MS")
+
+		comlist = [PYLOC_CDP, "gestim_cdp.py", "-d", kwargs['date'].get(), "-t", kwargs['time'].get(), "-ac", kwargs['autocancel'].get(), "-ae", kwargs['autoclose'].get(), "-tb", kwargs['tab'].get()]
+		if os.path.exists("gestim_cdp.exe"):
+			comlist = [PYLOC_CDP, "-d", kwargs['date'].get(), "-t", kwargs['time'].get(), "-ac", kwargs['autocancel'].get(), "-ae", kwargs['autoclose'].get(), "-tb", kwargs['tab'].get()]
+		run_module(comlist=comlist)
+
+	def reset(self, **kwargs):
+		data = sheet.findall(os.environ.get("PCNAME"))
+		for dt in data:
+			sheet.delete_rows(dt.row)
+		messagebox.showinfo(title='Info', message=f'Data with PCNAME {os.environ.get("PCNAME")} deleted')
+  
+	def estimation(self, **kwargs):
+		PCNAME = os.environ.get("PCNAME")
+		cell_list = sheet.findall(PCNAME)
+		# breakpoint()
+		kwargs['submit_time'].delete(0, 30)
+		target_time_str = f"{kwargs['target_time'].hourstr.get().zfill(2)}:{kwargs['target_time'].minstr.get().zfill(2)}:{kwargs['target_time'].secstr.get().zfill(2)}.000000"
+		rowlist = []
+		for cell in cell_list:
+			rowlist.append(sheet.row_values(cell.row))
+
+		if len(rowlist) >= 1:
+			# target_time_str = kwargs['time'].get()
+			actual_request_str = rowlist[-1][3]
+			actual_execution_str = rowlist[-1][5]
+			target_time = datetime.strptime(target_time_str, "%H:%M:%S.%f")
+			actual_request = datetime.strptime(actual_request_str, "%H:%M:%S.%f")
+			actual_execution = datetime.strptime(actual_execution_str, "%H:%M:%S.%f")      
+			offset = (actual_execution - actual_request).total_seconds()
+			request_time = target_time - timedelta(seconds=offset)
+			request_time_str = request_time.strftime("%H:%M:%S.%f")
+			kwargs['estime'].delete("1.0", END)
+			kwargs['estime'].insert("1.0", request_time_str+"\n")
+
+
+			rowlist = rowlist[-5:]
+			totaloffset = 0
+			for idx, row in enumerate(rowlist):
+				actual_request_str = row[3]
+				actual_execution_str = row[5]
+				actual_request = datetime.strptime(actual_request_str, "%H:%M:%S.%f")
+				actual_execution = datetime.strptime(actual_execution_str, "%H:%M:%S.%f")      
+				offset = (actual_execution - actual_request).total_seconds()
+				totaloffset += offset
+			avoffset = round(totaloffset/len(rowlist),6)
+			target_time = datetime.strptime(target_time_str, "%H:%M:%S.%f")
+			request_time = target_time - timedelta(seconds=avoffset)
+			request_time_str = request_time.strftime("%H:%M:%S.%f")
+			# est1_time = request_time - timedelta(seconds=avoffset)
+			kwargs['estime'].insert("2.0", request_time_str + "\n" )
+			messagebox.showinfo(title='Info', message=f'Estimate process Finished..')
+			# kwargs['estime'].insert("3.0", est1_time.strftime("%H:%M:%S.%f") + "\n" )
+		else:
+			# target_time_str = kwargs['time'].get()
+			target_time = datetime.strptime(target_time_str, "%H:%M:%S.%f")
+			request_time = target_time - timedelta(seconds=0.5)
+			kwargs['estime'].delete("1.0", END)
+			kwargs['estime'].insert("1.0", request_time.strftime("%H:%M:%S.%f") + "\n")
+
+	def chrome(self, **kwargs):
+		user_data = f"{os.getcwd()}\\{kwargs['port'].get()}"
+		comlist = [os.environ.get("CHROME_PATH"), f"--remote-debugging-port={kwargs["port"].get()}", f"--user-data-dir={user_data}", "https://gestim.mines.gouv.qc.ca/MRN_GestimP_Presentation/ODM02101_login.aspx"]
+		Popen(comlist, creationflags=CREATE_NEW_CONSOLE)	
+ 
 class CloseButton(ttk.Button):
 	def __init__(self, parent):
 		super().__init__(parent)
@@ -343,6 +504,9 @@ if __name__ == "__main__":
 	
 	if platform == "linux" or platform == "linux2":
 		PYLOC = "python"
+		PYLOC_CDP = "python"
 	elif platform == "win32":
 		PYLOC = os.environ.get("PYLOC")
+		PYLOC_CDP = os.environ.get("PYLOC_CDP")
+
 	main()

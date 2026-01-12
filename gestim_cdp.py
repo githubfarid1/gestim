@@ -4,7 +4,6 @@ import requests
 from PIL import Image
 import pytesseract
 import cv2
-# import time
 import sys
 import argparse
 from datetime import datetime, timedelta, date, time
@@ -17,6 +16,7 @@ from utils.time_helper import get_sync_time, get_time_with_timezone_and_offset, 
     get_time_object_with_timezone_and_offset, get_current_day_with_timezone_and_offset, \
     run_by_time, get_request_time, get_time_from_params
 import ntplib
+import random
 import gspread
 from google.oauth2.service_account import Credentials
 from gspread import Worksheet
@@ -57,11 +57,14 @@ def download_png(url, filename):
     except requests.exceptions.RequestException as e:
         print(f"Failed: {e}")
 
-# def get_ntp_time(server="pool.ntp.org"):
-#     client = ntplib.NTPClient()
-#     response = client.request(server, version=3)
-#     return datetime.fromtimestamp(response.tx_time, tz=utc)
-
+def sleep_random_ms(min_ms, max_ms):
+    # Convert milliseconds to seconds
+    min_seconds = min_ms / 1000.0
+    max_seconds = max_ms / 1000.0
+    # Generate a random float between the min and max seconds
+    sleep_time = random.uniform(min_seconds, max_seconds)
+    timesleep(sleep_time)
+    
 def handle_dialog(dialog):
     timesleep(3)
     try:
@@ -73,7 +76,7 @@ def handle_dialog(dialog):
     except:
         breakpoint()
 
-def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, password: str, appnumber: int, sheet: Worksheet, autocancel: bool = False) -> None:
+def run(playwright: Playwright, clickdate: str, clicktime: str, sheet: Worksheet, autocancel: bool = False, autoclose: bool = False, tabnumber: int = 1) -> None:
     selected_timezone = 'US/Eastern'
     PCNAME=os.environ.get("PCNAME")
     clickme = datetime(int(clickdate.split("-")[0]), int(clickdate.split("-")[1]), int(clickdate.split("-")[2]), int(clicktime.split(":")[0]), int(clicktime.split(":")[1]), int(clicktime.split(":")[2].split(".")[0]), int(clicktime.split(":")[2].split(".")[1]), tzinfo = tz.gettz(selected_timezone))
@@ -82,63 +85,23 @@ def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, p
         HEADLESS=True
     else:
         HEADLESS=False
-    browser = playwright.chromium.launch(headless=HEADLESS, channel="chrome")
-    # browser = playwright.chromium.connect_over_cdp("http://localhost:9222")
-    context = browser.new_context()
-    # context = browser.contexts[0]
-    page = context.new_page()
-    # page = context.pages[0]
-    page.goto("https://gestim.mines.gouv.qc.ca/MRN_GestimP_Presentation/ODM02101_login.aspx")
-    # breakpoint()
-    page.wait_for_selector("a#A1")
-    page.get_by_role("link", name="English").click()
-    # breakpoint()
-    page.wait_for_timeout(2000)
-    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-    page.locator("#tbCodeUtilisateur").click()
-    print("Input username and password...", end="", flush=True)
-    page.locator("#tbCodeUtilisateur").clear()
-    page.locator("#tbCodeUtilisateur").type(username, delay=100)
-    page.locator("#tbMotPasse").click()
-    page.locator("#tbMotPasse").clear()
-    page.locator("#tbMotPasse").type(password, delay=100)
-    print("OK")
-    captchaurl = f'https://gestim.mines.gouv.qc.ca/MRN_GestimP_Presentation/{page.locator("img#imgImageSecure").get_attribute("src")}'
-    print("Downloading Captcha image...", end="", flush=True)
-    download_png(url=captchaurl, filename="captcha.png")
-    print("Guessing Captcha number...", end="", flush=True)
-    captchanumber = read_captcha("captcha.png")
-    page.wait_for_timeout(1000)
-    # breakpoint()
-    print(captchanumber)
-    page.locator("#tbCodeSecurite").click()
-    page.locator("#tbCodeSecurite").type(captchanumber, delay=100)
-    print("Trying to login...", end="", flush=True)
-    page.locator("#imgBoutonSoumettre").click()
-    print("OK")
-    # breakpoint()
-    print("Accepting End User Licence Agreement...", end="", flush=True)
-    page.locator("#imgBoutonAccepter").click()
-    print("OK")
-    page.get_by_role("link").filter(has_text=re.compile(r"^$")).nth(3).click()
-    page.get_by_role("link", name="Requests").click()
-    print("Trying to Input Application number...", end="", flush=True)
-    page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("input[name=\"tbNoReq\"]").type(str(appnumber), delay=100)
-    # page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("#imgRechercher").click()
-    page.wait_for_timeout(2000)
-    page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("input[name=\"tbNoReq\"]").press("Enter")
-    page.locator("iframe[name=\"ifrPage1\"]").content_frame.get_by_role("link", name=str(appnumber)).click()
-    print("OK")
-    print("Validating form...", end="", flush=True)
-    page.wait_for_timeout(2000)
-    ischecked = page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("#cbDeclaration").get_attribute("checked")
-    if ischecked != "checked":
-        page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("#cbDeclaration").click()
-            
-    page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("#imgValider").click()
-    print("OK")
-    page.wait_for_timeout(3000)
+        
+    try:
+        browser = playwright.chromium.connect_over_cdp(f"http://localhost:{tabnumber}")
+        context = browser.contexts[0]
+    except:
+        input("Chrome has not opened yet")
+        sys.exit()
+    page = context.pages[0]
+    clickmestr = " ".join([clickdate, clicktime])
+    appnumber = page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("span#lblNoReqt").text_content()
     
+    print("______GESTIM MINING_______")
+    print(f"Tab Chrome : #{tabnumber}")
+    print(f"Application Number: {appnumber}")
+    print(f"Submit time execute: {clickmestr}")
+    print()
+        
     time_offset = 0
     while True:
         try:
@@ -150,7 +113,9 @@ def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, p
             continue
     
     print("Sleep until", clickme.strftime("%Y-%m-%d, %H:%M:%S.%f"), "...", end="", flush=True)
+    # breakpoint()
     buttonsubmit = page.locator("iframe[name=\"ifrPage1\"]").content_frame.locator("#btnImage")
+    
     while True:
         gt = datetime.now(est)
         gt = gt + timedelta(seconds=time_offset)
@@ -159,21 +124,27 @@ def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, p
             break
 
     result_time = page.locator("iframe[name=\"ifrPaiement1\"]").content_frame.locator("span#lblHeure").text_content().split(" ")[1]
+    # breakpoint()
     if autocancel:
         page.on("dialog", handle_dialog)
         page.wait_for_timeout(2000)
         page.locator("iframe[name=\"ifrPaiement1\"]").content_frame.locator("input#imgAnnuler").click()
     print("END")
     print("Result time:", result_time)
-    if autocancel:
-        input("Press Enter to save to Google Sheet and exit")
+    if not autoclose:
+        if autocancel:
+            input("Press Enter to save to Google Sheet and exit")
+        else:
+            input("Click  Checkout or Cancel and enter to save and exit")
+        sheet.append_row([PCNAME, str(appnumber), clickdate, clicktime, str(time_offset), result_time])
     else:
-        input("Click  Checkout or Cancel and enter to save and exit")
-        breakpoint()
-    
-    sheet.append_row([PCNAME, str(appnumber), clickdate, clicktime, str(time_offset), result_time])
-    
+        if autocancel:
+            input("Press Enter to save to Google Sheet and exit")
+        else:
+            input("Press Enter to Exit from the Bot, then you can press Checkout or Cancel button")
         
+        sleep_random_ms(100, 2000)
+        sheet.append_row([PCNAME, str(appnumber), clickdate, clicktime, str(time_offset), result_time])
     # ---------------------
     context.close()
     browser.close()
@@ -181,12 +152,11 @@ def run(playwright: Playwright, clickdate: str, clicktime: str, username: str, p
 
 def main():
     parser = argparse.ArgumentParser(description="Cells Swapper")
-    parser.add_argument('-u', '--username', type=str,help="Username")
-    parser.add_argument('-p', '--password', type=str,help="Password")
     parser.add_argument('-d', '--date', type=str,help="Date Click")
     parser.add_argument('-t', '--time', type=str,help="Time Click")
-    parser.add_argument('-a', '--appnumber', type=str,help="Application Number")
     parser.add_argument('-ac', '--autocancel', type=str,help="Autocancel")
+    parser.add_argument('-ae', '--autoclose', type=str,help="Autoclose")
+    parser.add_argument('-tb', '--tabnumber', type=str,help="Tab Number")
 
 
 
@@ -212,19 +182,9 @@ def main():
     selected_timezone = 'US/Eastern'
     clickdate = args.date
     clicktime = args.time
-    username = args.username
-    password = args.password
-    appnumber = args.appnumber
     autocancel = args.autocancel
-    
-    clickmestr = " ".join([clickdate, clicktime])
-    print("______GESTIM MINING_______")
-    # print("PASSED")
-    # print(f"Script Instance: {args.name}")
-    print(f"Username: {username}")
-    print(f"Application Number: {appnumber}")
-    print(f"Submit time execute: {clickmestr}")
-    print()
+    autoclose = args.autoclose
+    tabnumber = args.tabnumber    
     # 1. Tentukan scope (izin akses)
     SCOPES = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -239,9 +199,14 @@ def main():
     else:
         autocancel = False
         
-    print("START")
+    if autoclose == "Yes":
+        autoclose = True
+    else:
+        autoclose = False
+
+    # print("START")
     with sync_playwright() as playwright:
-        run(playwright=playwright, clickdate=clickdate, clicktime=clicktime, username=username, password=password, appnumber=appnumber, sheet=sheet, autocancel=autocancel)
+        run(playwright=playwright, clickdate=clickdate, clicktime=clicktime,  sheet=sheet, autocancel=autocancel, autoclose=autoclose, tabnumber=tabnumber)
 
 if __name__ == '__main__':
     main()
